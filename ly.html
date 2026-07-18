@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SplitEasy</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"/>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; }
+    .card { transition: all 0.3s ease; }
+  </style>
+</head>
+<body class="bg-zinc-950 text-white min-h-screen pb-20">
+
+  <div class="max-w-md mx-auto">
+    <div class="bg-gradient-to-r from-emerald-600 to-teal-600 p-6">
+      <h1 class="text-3xl font-bold flex items-center gap-2">
+        <i class="fas fa-wallet"></i> SplitEasy
+      </h1>
+      <p class="text-emerald-100">Group expenses sorted!</p>
+    </div>
+
+    <div class="flex border-b border-zinc-800">
+      <button onclick="switchTab(0)" id="tab0" class="flex-1 py-4 text-center border-b-2 border-emerald-500 font-medium">Expenses</button>
+      <button onclick="switchTab(1)" id="tab1" class="flex-1 py-4 text-center text-zinc-400">Balances</button>
+      <button onclick="switchTab(2)" id="tab2" class="flex-1 py-4 text-center text-zinc-400">Friends</button>
+    </div>
+
+    <div class="p-4" id="content">
+      <div id="tab-content-0">
+        <button onclick="showAddExpense()" class="w-full bg-emerald-600 hover:bg-emerald-500 py-3 rounded-2xl flex items-center justify-center gap-2 text-lg font-medium">
+          <i class="fas fa-plus"></i> Add New Expense
+        </button>
+        
+        <!-- Naya Reset Button -->
+        <button onclick="resetAllData()" 
+                class="w-full mt-3 bg-red-600 hover:bg-red-700 py-2.5 rounded-2xl flex items-center justify-center gap-2 text-sm font-medium">
+          <i class="fas fa-trash"></i> Purana Data Clear Karo
+        </button>
+
+        <div id="expenses-list" class="mt-6 space-y-3"></div>
+      </div>
+
+      <!-- Balances tab removed -->
+
+      <div id="tab-content-2" class="hidden">
+        <div class="flex gap-2 mb-4">
+          <input id="friend-name" type="text" placeholder="Friend ka naam" class="flex-1 bg-zinc-900 p-4 rounded-2xl outline-none"/>
+          <button onclick="addFriend()" class="bg-emerald-600 px-6 rounded-2xl">Add</button>
+        </div>
+        <div id="friends-list" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="expense-modal" class="hidden fixed inset-0 bg-black/80 flex items-end">
+    <div class="bg-zinc-900 w-full rounded-t-3xl p-6 max-w-md mx-auto">
+      <h2 class="text-2xl font-bold mb-6">New Expense</h2>
+      <input id="exp-desc" type="text" placeholder="Kya kharcha tha?" class="w-full bg-zinc-800 p-4 rounded-2xl mb-4 outline-none"/>
+      <input id="exp-amount" type="number" placeholder="Amount (₹)" class="w-full bg-zinc-800 p-4 rounded-2xl mb-4 outline-none"/>
+      <select id="exp-payer" class="w-full bg-zinc-800 p-4 rounded-2xl mb-4 outline-none"></select>
+      
+      <p class="text-zinc-400 mb-3">Split with:</p>
+      <div id="split-members" class="grid grid-cols-2 gap-2"></div>
+
+      <div class="flex gap-3 mt-8">
+        <button onclick="hideModal()" class="flex-1 py-4 border border-zinc-700 rounded-2xl">Cancel</button>
+        <button onclick="saveExpense()" class="flex-1 py-4 bg-emerald-600 rounded-2xl font-medium">Save Expense</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let friends = JSON.parse(localStorage.getItem('friends')) || ["You"];
+    let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+
+    function saveData() {
+      localStorage.setItem('friends', JSON.stringify(friends));
+      localStorage.setItem('expenses', JSON.stringify(expenses));
+    }
+
+    // Naya Reset Function
+    function resetAllData() {
+      if (confirm("Kya pura data clear karna hai?\n\nYeh action wapas nahi ho sakta!")) {
+        localStorage.clear();
+        friends = ["You"];
+        expenses = [];
+        renderFriends();
+        renderExpenses();
+        alert("Sab clear ho gaya! Ab app fresh start pe hai.");
+      }
+    }
+
+    function renderFriends() {
+      const list = document.getElementById('friends-list');
+      list.innerHTML = '';
+      friends.forEach((friend, i) => {
+        if (friend === "You") return;
+        const div = document.createElement('div');
+        div.className = "bg-zinc-900 p-4 rounded-2xl flex justify-between items-center";
+        div.innerHTML = `
+          <span>${friend}</span>
+          <button onclick="removeFriend(${i})" class="text-red-500"><i class="fas fa-trash"></i></button>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function addFriend() {
+      const name = document.getElementById('friend-name').value.trim();
+      if (name && !friends.includes(name)) {
+        friends.push(name);
+        saveData();
+        renderFriends();
+        document.getElementById('friend-name').value = '';
+      }
+    }
+
+    function removeFriend(index) {
+      if (confirm("Remove this friend?")) {
+        friends.splice(index, 1);
+        saveData();
+        renderFriends();
+      }
+    }
+
+    function showAddExpense() {
+      document.getElementById('expense-modal').classList.remove('hidden');
+      document.getElementById('exp-desc').value = '';
+      document.getElementById('exp-amount').value = '';
+
+      const payerSelect = document.getElementById('exp-payer');
+      payerSelect.innerHTML = '';
+      friends.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f;
+        opt.textContent = f;
+        payerSelect.appendChild(opt);
+      });
+
+      const splitDiv = document.getElementById('split-members');
+      splitDiv.innerHTML = '';
+      friends.forEach(f => {
+        const label = document.createElement('label');
+        label.className = "flex items-center gap-2 bg-zinc-800 p-3 rounded-xl cursor-pointer";
+        label.innerHTML = `
+          <input type="checkbox" checked class="accent-emerald-500" value="${f}">
+          <span>${f}</span>
+        `;
+        splitDiv.appendChild(label);
+      });
+    }
+
+    function hideModal() {
+      document.getElementById('expense-modal').classList.add('hidden');
+    }
+
+    function saveExpense() {
+      const desc = document.getElementById('exp-desc').value.trim();
+      const amount = parseFloat(document.getElementById('exp-amount').value);
+      const payer = document.getElementById('exp-payer').value;
+
+      if (!desc || !amount) return alert("Description aur amount daalo!");
+
+      const checkedMembers = Array.from(document.querySelectorAll('#split-members input:checked')).map(cb => cb.value);
+
+      expenses.push({ id: Date.now(), desc, amount, payer, members: checkedMembers });
+      saveData();
+      hideModal();
+      renderExpenses();
+    }
+
+    function renderExpenses() {
+      const list = document.getElementById('expenses-list');
+      list.innerHTML = '';
+      expenses.forEach(exp => {
+        const div = document.createElement('div');
+        div.className = "bg-zinc-900 p-5 rounded-3xl card";
+        div.innerHTML = `
+          <div class="flex justify-between">
+            <div>
+              <p class="font-semibold">${exp.desc}</p>
+              <p class="text-sm text-zinc-400">Paid by <span class="text-emerald-400">${exp.payer}</span></p>
+            </div>
+            <p class="text-2xl font-bold text-emerald-400">₹${exp.amount}</p>
+          </div>
+          <p class="text-xs text-zinc-500 mt-3">Split among: ${exp.members.join(', ')}</p>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function switchTab(n) {
+      document.querySelectorAll('#content > div').forEach(div => div.classList.add('hidden'));
+      document.getElementById(`tab-content-${n}`).classList.remove('hidden');
+
+      document.querySelectorAll('.border-b-2').forEach(tab => tab.classList.remove('border-emerald-500'));
+      document.getElementById(`tab${n}`).classList.add('border-emerald-500');
+    }
+
+    // Initialize
+    renderFriends();
+    renderExpenses();
+    switchTab(0);
+  </script>
+</body>
+</html>
